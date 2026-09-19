@@ -1,0 +1,19 @@
+[package]
+name = "t-scope"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "t-scope"
+path = "main.rs"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+apiresponse = "0.2"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+memmap2 = "0.9"
