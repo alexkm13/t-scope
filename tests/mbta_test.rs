@@ -46,3 +46,20 @@ fn test_null_coords() {
     assert!(long.is_none());
     println!("Null handling works!");
 }
+
+#[tokio::test]
+async fn test_fetch_predictions() {
+    let client = reqwest::Client::new();
+    let predictions = t_scope::mbta::fetch_predictions(&client).await;
+
+    match predictions {
+        Ok(preds) => {
+            println!("Fetched {} predictions", preds.len());
+            for pred in preds.iter().take(5) {
+                println!("{:?}", pred);
+            }
+            assert!(!preds.is_empty());
+        }
+        Err(e) => panic!("Failed to fetch predictions: {}", e),
+    }
+}
