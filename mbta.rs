@@ -2,28 +2,44 @@ use serde::Deserialize;
 use apiresponse::ApiResponse;
 use serde_json::json;
 use chrono::{DateTime, FixedOffset};
+use std::collections::HashMap;
+
 
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct Train {
     pub lat: Option<f64>,
     pub long: Option<f64>,
-    pub route_id: Option<String>,
-    pub stop_id: Option<String>,
-    pub vehicle_id: String,
+    pub route_id: Option<String>, // switch to array of ascii
+    pub stop_id: Option<String>, // switch to array of ascii 
+    pub vehicle_id: String, // switch to array of ascii
 }
 
 #[derive(Deserialize)]
 #[derive(Debug)]
 pub struct PredictedTimes {
-   pub arrival_time: Option<DateTime<FixedOffset>>,
-   pub departure_time: Option<DateTime<FixedOffset>>,
-   pub status: Option<String>,
+   pub arrival_time: Option<DateTime<FixedOffset>>, // turn into ms 
+   pub departure_time: Option<DateTime<FixedOffset>>, // turn into ms
+   pub status: Option<String>, // switch to array of ascii
    pub stop_number: u64,
    pub direction_id: u64,
-   pub vehicle_id: Option<String>,
+   pub vehicle_id: Option<String>, // switch to array of ascii
 }
 
+#[derive(Deserialize)]
+#[derive(Debug)]
+pub struct TrainState {
+    pub lat: Option<f64>,
+    pub long: Option<f64>,
+    pub route_id: Option<String>,
+    pub stop_id: Option<String>,
+    pub vehicle_id: String, 
+    pub predictions: Vec<PredictedTimes>,
+}
+
+pub struct Snapshot {
+    pub trains: Vec<TrainState>,
+}
 
 pub async fn fetch_vehicles(client: &reqwest::Client) -> Result<Vec<Train>, Box<dyn std::error::Error>> {
     let url = "https://api-v3.mbta.com/vehicles";
@@ -70,4 +86,32 @@ pub async fn fetch_predictions(client: &reqwest::Client) -> Result<Vec<Predicted
         };
      }
     Ok(predicted_times)
+}
+
+pub fn combine_vehicles(predicted_times: Vec<PredictedTimes>, vehicles: Vec<Train>) -> Snapshot { 
+    let mut trains: HashMap<String, TrainState> = HashMap::new();
+
+    for v in vehicles {
+        let state = TrainState {
+            lat: v.lat,
+            long: v.long,
+            route_id: v.route_id,
+            stop_id: v.stop_id,
+            vehicle_id: v.vehicle_id.clone(),
+            predictions: Vec::new(),
+        };
+        trains.insert(v.vehicle_id, state);
+    }
+
+    for p in predicted_times {
+        if let Some(vehicle_id) = p.vehicle_id.clone() {
+            if let Some(train) = trains.get_mut(&vehicle_id) {
+                train.predictions.push(p);
+            }
+        }
+    }
+
+    Snapshot {
+        trains: trains.into_values().collect(),
+    }
 }
