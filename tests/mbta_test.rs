@@ -144,3 +144,33 @@ async fn test_combine_vehicles_live() {
 
     assert!(!snapshot.trains.is_empty());
 }
+
+#[tokio::test]
+async fn test_to_shared_snapshot() {
+    use t_scope::mbta::{fetch_vehicles, fetch_predictions, combine_vehicles, convert_snapshot};
+
+    let client = reqwest::Client::new();
+    let vehicles = fetch_vehicles(&client).await.unwrap();
+    let predictions = fetch_predictions(&client).await.unwrap();
+    let snapshot = combine_vehicles(predictions, vehicles);
+
+    let shared = convert_snapshot(&snapshot);
+
+    println!("SharedSnapshot train_count: {}", shared.train_count);
+    assert!(shared.train_count > 0);
+    assert_eq!(shared.train_count as usize, snapshot.trains.len());
+
+    // Check a train with predictions
+    for i in 0..shared.train_count as usize {
+        let train = &shared.trains[i];
+        if train.prediction_count > 0 {
+            println!("Train {} has {} predictions", i, train.prediction_count);
+            println!("  vehicle_id: {:?}", std::str::from_utf8(&train.vehicle_id).unwrap().trim_end_matches('\0'));
+            println!("  lat: {}, long: {}", train.lat, train.long);
+            println!("  first prediction arrival_ms: {}", train.predictions[0].arrival_time_ms);
+            break;
+        }
+    }
+
+    println!("to_shared_snapshot test passed!");
+}

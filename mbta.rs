@@ -37,10 +37,112 @@ pub struct TrainState {
     pub predictions: Vec<PredictedTimes>,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SharedPrediction {
+    pub arrival_time_ms: i64,
+    pub departure_time_ms: i64,
+    pub status: [u8; 32],
+    pub stop_number: u64,
+    pub direction_id: u64,
+}
+
+impl Default for SharedPrediction {
+    fn default() -> Self {
+        SharedPrediction {
+            arrival_time_ms: i64::MIN,
+            departure_time_ms: i64::MIN,
+            status: [0u8; 32],
+            stop_number: 0,
+            direction_id: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SharedTrainState {
+    pub lat: f64,
+    pub long: f64,
+    pub route_id: [u8; 16],
+    pub stop_id: [u8; 16],
+    pub vehicle_id: [u8; 16],
+    pub prediction_count: u32,
+    pub predictions: [SharedPrediction; 64],
+}
+
+impl Default for SharedTrainState {
+    fn default() -> Self {
+        SharedTrainState {
+            lat: f64::NAN,
+            long: f64::NAN,
+            route_id: [0u8; 16],
+            stop_id: [0u8; 16],
+            vehicle_id: [0u8; 16],
+            prediction_count: 0,
+            predictions: [SharedPrediction::default(); 64],
+        }
+    }
+}
+
+#[repr(C)]
+pub struct SharedSnapshot {
+    pub train_count: u32,
+    pub trains: [SharedTrainState; 512],
+}
+
 pub struct Snapshot {
     pub trains: Vec<TrainState>,
 }
+pub fn turn_into_arr<const N: usize>(s: &str) -> [u8; N] {
+    let mut arr = [0u8; N];
+    let bytes = s.as_bytes();
+    let len = bytes.len().min(N);
+    arr[..len].copy_from_slice(&bytes[..len]);
+    arr
+}
 
+pub fn convert_predicted_times(pred: &PredictedTimes) -> SharedPrediction {
+    SharedPrediction {
+        arrival_time_ms: pred.arrival_time.map(|dt| dt.timestamp_millis()).unwrap_or(i64::MIN),
+        departure_time_ms: pred.departure_time.map(|dt| dt.timestamp_millis()).unwrap_or(i64::MIN),
+        status: turn_into_arr(pred.status.as_deref().unwrap_or("")),
+        stop_number: pred.stop_number,
+        direction_id: pred.direction_id,
+    }
+}
+
+pub fn convert_train_state(train: &TrainState) -> SharedTrainState {
+    assert!(train.predictions.len() <= 64);
+    let mut shared_train = SharedTrainState {
+        lat: train.lat.unwrap_or(f64::NAN),
+        long: train.long.unwrap_or(f64::NAN),
+        route_id: turn_into_arr(train.route_id.as_deref().unwrap_or("")),
+        stop_id: turn_into_arr(train.stop_id.as_deref().unwrap_or("")),
+        vehicle_id: turn_into_arr(&train.vehicle_id),
+        prediction_count: train.predictions.len().min(64) as u32,
+        predictions: [SharedPrediction::default(); 64],
+    };
+
+    for (i, pred) in train.predictions.iter().take(64).enumerate() {
+        shared_train.predictions[i] = convert_predicted_times(pred);
+    }
+
+    shared_train
+}
+
+pub fn convert_snapshot(snapshot: &Snapshot) -> SharedSnapshot {
+    assert!(snapshot.trains.len() <= 512);
+
+    let mut shared_snap = SharedSnapshot::default();
+    shared_snap.train_count = snapshot.trains.len() as u32;
+
+    for (i, train) in snapshot.trains.iter().enumerate() {
+        shared_snap.trains[i] = convert_train_state(train);
+    }
+
+    shared_snap
+}
 pub async fn fetch_vehicles(client: &reqwest::Client) -> Result<Vec<Train>, Box<dyn std::error::Error>> {
     let url = "https://api-v3.mbta.com/vehicles";
     let response = client.get(url).send().await?;
