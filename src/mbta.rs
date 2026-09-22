@@ -91,6 +91,15 @@ pub struct SharedSnapshot {
     pub trains: [SharedTrainState; 512],
 }
 
+impl Default for SharedSnapshot {
+    fn default() -> Self {
+        SharedSnapshot {
+            train_count: 0,
+            trains: [SharedTrainState::default(); 512],
+        }
+    }
+}
+
 pub struct Snapshot {
     pub trains: Vec<TrainState>,
 }
