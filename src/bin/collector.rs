@@ -1,24 +1,26 @@
-use memmap2::MmapOptions;
+use reqwest::Client;
 use std::fs::OpenOptions;
+use std::mem::size_of;
+use memmap2::{MmapMut, MmapOptions};
+use t_scope::mbta::{SharedSnapshot, fetch_vehicles, fetch_predictions}; 
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let num: u64 = 42;
-    let bytes = num.to_ne_bytes();
-
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let trains = fetch_vehicles(&client).await?;
+    let predictions = fetch_predictions(&client).await?;
+    
     let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open("shared_data.bin")?;
+    .read(true)
+    .write(true)
+    .create(true)
+    .open("shared_data.dat")?;
 
-    file.set_len(8)?;
+    file.set_len(size_of::<SharedSnapshot>() as u64)?;
 
     let mut mmap = unsafe {
-        MmapOptions::new().map_mut(&file)?
+        MmapMut::map_mut(&file)?
     };
-
-    mmap[0..8].copy_from_slice(&bytes);
-    println!("Wrote {} to shared_data.bin", num);
-
+ 
     Ok(())
 }
