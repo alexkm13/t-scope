@@ -152,6 +152,7 @@ pub fn convert_snapshot(snapshot: &Snapshot) -> SharedSnapshot {
 
     shared_snap
 }
+
 pub async fn fetch_vehicles(client: &reqwest::Client) -> Result<Vec<Train>, Box<dyn std::error::Error>> {
     let url = "https://api-v3.mbta.com/vehicles";
     let response = client.get(url).send().await?;

@@ -13,18 +13,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         MmapOptions::new().map_mut(&file)?
     };
 
-    let ptr = mmap.as_ptr() as *mut SharedRegion;
-    let region = unsafe { &*ptr };
-    
+    let region = mmap.as_ptr() as *const SharedRegion;
+
     let region_slot = loop {
-        let curr_pub = region.publication.load(Ordering::Acquire);
+        let curr_pub = unsafe { (*region).publication.load(Ordering::Acquire) };
         let slot = (curr_pub & 0xFFFF_FFFF) as u32;
-        region.reader_holds.store(slot, Ordering::Release);
-        if curr_pub == (region.publication.load(Ordering::Acquire) as u64) && slot != 3 {
+        unsafe { (*region).reader_holds.store(slot, Ordering::Release) };
+        if curr_pub == unsafe { (*region).publication.load(Ordering::Acquire) } && slot != 3 {
             break slot;
         }
     };
-    let snapshot = &region.slots[region_slot as usize];
+
+    let snapshot = unsafe { &(*region).slots[region_slot as usize] };
 
     for i in 0..snapshot.train_count as usize {
         let train = &snapshot.trains[i];
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             train.prediction_count
         );
     }
-    
-    region.reader_holds.store(0, Ordering::Release);
+
+    unsafe { (*region).reader_holds.store(3, Ordering::Release) };
     Ok(())
 }

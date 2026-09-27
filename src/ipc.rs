@@ -10,26 +10,24 @@ pub struct SharedRegion {
     pub slots: [SharedSnapshot; 3],
 }
 
-pub fn mmap_snapshot(snapshot: &Snapshot, mmap: &mut MmapMut) -> Result<(), Box<dyn std::error::Error>> {
-    let ptr = mmap.as_mut_ptr() as *mut SharedSnapshot;
-    let shared = unsafe { &mut *ptr };
-    shared.train_count = snapshot.trains.len() as u32;
-
-    for (i, train) in snapshot.trains.iter().enumerate() {
-        shared.trains[i] = convert_train_state(train);
+pub unsafe fn write_snapshot(snapshot: &Snapshot, dest: *mut SharedSnapshot) {
+    assert!(snapshot.trains.len() <= 512);
+    unsafe {
+        (*dest).train_count = snapshot.trains.len() as u32;
+        for (i, train) in snapshot.trains.iter().enumerate() {
+            (*dest).trains[i] = convert_train_state(train);
+        }
     }
-    
-    Ok(())
 }
 
-pub fn init_shared_region(mmap: &mut MmapMut) -> &mut SharedRegion {
+pub fn init_shared_region(mmap: &mut MmapMut) {
     assert!(mmap.len() >= std::mem::size_of::<SharedRegion>());
+
+    mmap.fill(0);
+
     let ptr = mmap.as_mut_ptr() as *mut SharedRegion;
-    let region = unsafe { &mut *ptr };
-    
-    region.reader_holds.store(3, Ordering::Release);
-    region.publication.store(3u64, Ordering::Release);
-    region.slots = std::array::from_fn(|_| SharedSnapshot::default());
-    
-    region
+    unsafe {
+        (*ptr).reader_holds = AtomicU32::new(3);
+        (*ptr).publication = AtomicU64::new(3);
+    }
 }
