@@ -218,6 +218,36 @@ The implementation was tested against the important protocol cases:
 
 The goal of these tests is not merely to show that data appears on screen, but to attack slot reuse and publication invariants.
 
+## Stress test results
+
+The protocol was validated with a dedicated stress test harness that:
+
+- uses self-checking snapshots where every field is derived from generation number
+- injects random delays (0-2ms) in the critical claim-verify window
+- runs as separate processes on the same mmap region
+- includes a negative control that deliberately breaks the protocol
+
+Results on M-series Mac (ARM64, where memory reordering is more aggressive than x86):
+
+```text
+0 torn reads across 305,622 publications
+0 generation regressions across 180,272 verified reads
+33% reader retry rate (expected with aggressive delays)
+0 writer stalls (3-slot buffer never exhausted)
+```
+
+The negative control (reader skipping the claim step) was caught within 3 seconds with 3 torn reads detected, confirming the harness catches real bugs.
+
+To run the stress test:
+
+```bash
+# Terminal 1
+cargo run --release --bin stress_writer -- 60
+
+# Terminal 2
+cargo run --release --bin stress_reader -- 60
+```
+
 ## What I learned
 
 T-Scope was primarily a shared-memory and reclamation project.

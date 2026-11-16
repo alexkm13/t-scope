@@ -3,3 +3,4 @@
 Cargo.lock
 process
 shared_data.dat
+stress_test.dat
