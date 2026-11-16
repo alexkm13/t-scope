@@ -230,13 +230,13 @@ The protocol was validated with a dedicated stress test harness that:
 Results on M-series Mac (ARM64, where memory reordering is more aggressive than x86):
 
 ```text
-0 torn reads across 305,622 publications
-0 generation regressions across 180,272 verified reads
-33% reader retry rate (expected with aggressive delays)
+0 torn reads across 84,189 verified reads
+0 generation regressions
+46% reader retry rate (expected with SeqCst and aggressive delays)
 0 writer stalls (3-slot buffer never exhausted)
 ```
 
-The negative control (reader skipping the claim step) was caught within 3 seconds with 3 torn reads detected, confirming the harness catches real bugs.
+The negative control (reader skipping the claim step) catches torn reads within seconds, confirming the harness detects real bugs.
 
 To run the stress test:
 
