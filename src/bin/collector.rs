@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let curr_pub = unsafe { (*region).publication.load(Ordering::Acquire) };
         let curr_slot = (curr_pub & 0xFFFF_FFFF) as u32;
-        let reader_slot = unsafe { (*region).reader_holds.load(Ordering::Acquire) };
+        let reader_slot = unsafe { (*region).reader_holds.load(Ordering::SeqCst) };
 
         let next_slot = {
             let candidate = (curr_slot + 1) % 3;
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let new_generation = (curr_pub >> 32) + 1;
         let new_pub = (new_generation << 32) | (next_slot as u64);
-        unsafe { (*region).publication.store(new_pub, Ordering::Release) };
+        unsafe { (*region).publication.store(new_pub, Ordering::SeqCst) };
 
         sleep(Duration::from_secs(10)).await;
     }

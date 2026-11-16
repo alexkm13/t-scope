@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let curr_pub = unsafe { (*region).publication.load(Ordering::Acquire) };
         let curr_slot = (curr_pub & 0xFFFF_FFFF) as u32;
         let curr_gen = curr_pub >> 32;
-        let reader_slot = unsafe { (*region).reader_holds.load(Ordering::Acquire) };
+        let reader_slot = unsafe { (*region).reader_holds.load(Ordering::SeqCst) };
 
         let candidate1 = (curr_slot + 1) % 3;
         let candidate2 = (curr_slot + 2) % 3;
@@ -129,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         random_delay();
 
         let new_pub = (new_gen << 32) | (next_slot as u64);
-        unsafe { (*region).publication.store(new_pub, Ordering::Release) };
+        unsafe { (*region).publication.store(new_pub, Ordering::SeqCst) };
 
         writes += 1;
 

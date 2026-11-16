@@ -18,8 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let region_slot = loop {
         let curr_pub = unsafe { (*region).publication.load(Ordering::Acquire) };
         let slot = (curr_pub & 0xFFFF_FFFF) as u32;
-        unsafe { (*region).reader_holds.store(slot, Ordering::Release) };
-        if curr_pub == unsafe { (*region).publication.load(Ordering::Acquire) } && slot != 3 {
+        unsafe { (*region).reader_holds.store(slot, Ordering::SeqCst) };
+        if curr_pub == unsafe { (*region).publication.load(Ordering::SeqCst) } && slot != 3 {
             break slot;
         }
     };

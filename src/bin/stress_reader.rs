@@ -158,11 +158,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        unsafe { (*region).reader_holds.store(slot, Ordering::Release) };
+        unsafe { (*region).reader_holds.store(slot, Ordering::SeqCst) };
 
         random_delay();
 
-        let recheck_pub = unsafe { (*region).publication.load(Ordering::Acquire) };
+        let recheck_pub = unsafe { (*region).publication.load(Ordering::SeqCst) };
         if recheck_pub != curr_pub {
             retries += 1;
             unsafe { (*region).reader_holds.store(3, Ordering::Release) };
