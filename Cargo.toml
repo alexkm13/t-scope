@@ -15,6 +15,14 @@ path = "src/bin/collector.rs"
 name = "display"
 path = "src/bin/display.rs"
 
+[[bin]]
+name = "stress_writer"
+path = "src/bin/stress_writer.rs"
+
+[[bin]]
+name = "stress_reader"
+path = "src/bin/stress_reader.rs"
+
 [lib]
 path = "src/lib.rs"
 
